@@ -1,0 +1,314 @@
+import { useEffect, useRef, useState } from "react";
+import { MultiSelect } from "react-multi-select-component";
+import DateRangePicker from '@wojtekmaj/react-daterange-picker';
+import '@wojtekmaj/react-daterange-picker/dist/DateRangePicker.css';
+import 'react-calendar/dist/Calendar.css';
+import Slider from 'rc-slider';
+import 'rc-slider/assets/index.css';
+
+import { ParameterType, SingleSelectParameterType, MultiSelectParameterType, DateParameterType, DateRangeParameterType, NumberParameterType, NumberRangeParameterType } from "../types/ParametersResponse";
+import './ParameterWidgets.css';
+
+
+function createOption(id: string, label: string) {
+    return (<option key={id} value={id}>{label}</option>);
+}
+
+
+interface WidgetProps {
+    obj: ParameterType;
+    handleChange: (x: string) => (() => void);
+}
+
+interface SelectWidgetProps extends WidgetProps {
+    refreshWidgetStates: (provoker: string, selection: string) => void;
+}
+
+
+function SingleSelectWidget({ obj, handleChange, refreshWidgetStates }: SelectWidgetProps) {
+    const data = obj as SingleSelectParameterType;
+    const options = data.options.map(option => {
+        return createOption(option.id, option.label);
+    });
+
+    const [selectedId, setSelectedId] = useState<string>("");
+    useEffect(() => {
+        setSelectedId(data.selected_id);
+    }, [data])
+
+    useEffect(() => {
+        return handleChange(selectedId);
+    }, [selectedId])
+
+    const onChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setSelectedId(e.target.value);
+        if (data.trigger_refresh) {
+            refreshWidgetStates(data.name, e.target.value);
+        }
+    };
+
+    return (
+        <div>
+            <label>{data.label}</label>
+            <select 
+                id={data.name} 
+                className="single-select padded widget"
+                value={selectedId}
+                onChange={onChange}
+            >
+                {options}
+            </select>
+        </div>
+    );
+}
+
+
+function MultiSelectWidget({ obj, handleChange, refreshWidgetStates }: SelectWidgetProps) {
+    const data = obj as MultiSelectParameterType;
+
+    type InputOption = {label: string, id: string};
+    type Option = {label: string, value: string};
+    const convertInputOption = (x: InputOption) => {return {label: x.label, value: x.id}};
+    const getOptions = () => data.options.map(option => convertInputOption(option));
+    const selectionsToString = (options: Option[]) => {
+        return JSON.stringify(options.map(x => x.value));
+    }
+
+    const [selected, setSelected] = useState<Option[]>([]);
+    useEffect(() => {
+        const newSelected = data.selected_ids.map(selectedId => {
+            const selectedObj = data.options.find(option => (option.id == selectedId));
+            return convertInputOption(selectedObj || {label: "", id: ""});
+        });
+        setSelected(newSelected);
+    }, [data]);
+
+    useEffect(() => {
+        return handleChange(selectionsToString(selected));
+    }, [selected]);
+    
+    const onChange = (x: Option[]) => {
+        setSelected(x);
+        if (data.trigger_refresh) {
+            refreshWidgetStates(data.name, selectionsToString(x));
+        }
+    };
+
+    const orderMattersTxt = <span>{data.order_matters ? " (order matters)" : ""}</span>;
+
+    return (
+        <div>
+            <label>{data.label}{orderMattersTxt}</label>
+            <MultiSelect
+                options={getOptions()}
+                labelledBy={data.name}
+                className="multi-select widget"
+                value={selected}
+                onChange={onChange}
+                hasSelectAll={data.include_all}
+            />
+        </div>
+    );
+}
+
+
+function DateWidget({ obj, handleChange }: WidgetProps) {
+    const data = obj as DateParameterType;
+
+    const [selectedDate, setSelectedDate] = useState("");
+    useEffect(() => {
+        setSelectedDate(data.selected_date);
+    }, [data]);
+
+    useEffect(() => {
+        return handleChange(selectedDate);
+    }, [selectedDate]);
+
+    return (
+        <div>
+            <label>{data.label}</label>
+            <input type="date" 
+                id={data.name}
+                className="date padded widget"
+                value={selectedDate} 
+                onChange={e => setSelectedDate(e.target.value)} 
+            />
+        </div>
+    );
+}
+
+
+function DateRangeWidget({ obj, handleChange }: WidgetProps) {
+    const data = obj as DateRangeParameterType;
+
+    type ValuePiece = Date | null;
+    type Value = ValuePiece | [ValuePiece, ValuePiece];
+
+    const strToDate = (s: string) => new Date(s.replace(/-/g, '\/'))
+
+    const [dateRange, setDateRange] = useState<Value>([new Date(), new Date()]);
+    useEffect(() => {
+        setDateRange([strToDate(data.selected_start_date), strToDate(data.selected_end_date)]);
+    }, [data]);
+
+    useEffect(() => {
+        const [startDate, endDate] = dateRange as [Date, Date];
+        const startISODate = startDate.toISOString().split('T')[0];
+        const endISODate = endDate.toISOString().split('T')[0];
+        return handleChange(startISODate + "," + endISODate);
+    }, [dateRange]);
+    
+    return (
+        <div>
+            <label>{data.label}</label>
+            <DateRangePicker
+                className="widget"
+                value={dateRange}
+                onChange={setDateRange}
+                format="y/MM/dd"
+            />
+        </div>
+    );
+}
+
+
+function NumberWidget({ obj, handleChange }: WidgetProps) {
+    const data = obj as NumberParameterType;
+
+    const [selectedValue, setSelectedValue] = useState(0);
+    useEffect(() => {
+        setSelectedValue(parseFloat(data.selected_value));
+    }, [data]);
+
+    useEffect(() => {
+        return handleChange(selectedValue.toString());
+    }, [selectedValue]);
+
+    return (
+        <div>
+            <label>{data.label}</label>
+            <div className="slider-wrapper">
+                <Slider 
+                    min={parseFloat(data.min_value)}
+                    max={parseFloat(data.max_value)}
+                    step={parseFloat(data.increment)}
+                    value={selectedValue}
+                    onChange={val => setSelectedValue(val as number)}
+                />
+            </div>
+            <div className="slider-value">
+                <span>Value: {selectedValue}</span>
+            </div>
+        </div>
+    )
+}
+
+
+function NumberRangeWidget({ obj, handleChange }: WidgetProps) {
+    const data = obj as NumberRangeParameterType;
+
+    const [selectedValues, setSelectedValues] = useState([0, 0]);
+    useEffect(() => {
+        setSelectedValues([parseFloat(data.selected_lower_value), parseFloat(data.selected_upper_value)]);
+    }, [data]);
+
+    useEffect(() => {
+        const [lowerValue, upperValue] = selectedValues.map(x => x.toString())
+        return handleChange(lowerValue + "," + upperValue);
+    }, [selectedValues]);
+
+    return (
+        <div>
+            <label>{data.label}</label>
+            <div className="slider-wrapper">
+                <Slider range
+                    min={parseFloat(data.min_value)}
+                    max={parseFloat(data.max_value)}
+                    step={parseFloat(data.increment)}
+                    value={selectedValues}
+                    onChange={val => setSelectedValues(val as number[])}
+                />
+            </div>
+            <div className="slider-value">
+                <span>Lower: {selectedValues[0]}</span><span>Upper: {selectedValues[1]}</span>
+            </div>
+        </div>
+    )
+}
+
+
+interface WidgetFromObjProps {
+    obj: ParameterType;
+    paramSelections: React.MutableRefObject<Map<string, string>>;
+    refreshWidgetStates: (provoker: string, selection: string) => void;
+}
+
+function WidgetFromObj({ obj, paramSelections, refreshWidgetStates }: WidgetFromObjProps) {
+
+    function cleanup() {
+        paramSelections.current.delete(obj.name);
+    }
+
+    function handleChange(value: string) {
+        paramSelections.current.set(obj.name, value);
+        return cleanup
+    }
+
+    let widget = <></>;
+    switch(obj.widget_type) {
+        case "single_select":
+            widget = (<SingleSelectWidget obj={obj} handleChange={handleChange} refreshWidgetStates={refreshWidgetStates} />);
+            break;
+        case "multi_select":
+            widget = (<MultiSelectWidget obj={obj} handleChange={handleChange} refreshWidgetStates={refreshWidgetStates} />);
+            break;
+        case "date":
+            widget = (<DateWidget obj={obj} handleChange={handleChange} />);
+            break;
+        case "date_range":
+            widget = (<DateRangeWidget obj={obj} handleChange={handleChange} />);
+            break;
+        case "number":
+            widget = (<NumberWidget obj={obj} handleChange={handleChange} />);
+            break;
+        case "number_range":
+            widget = (<NumberRangeWidget obj={obj} handleChange={handleChange} />);
+            break;
+        default:
+            break;
+    }
+    return <>{widget}</>;
+}
+
+
+interface ParametersContainerProps {
+    paramData: ParameterType[];
+    datasetName: string;
+    refreshWidgetStates: (provoker: string, selection: string) => void;
+    updateTableData: (x: Map<string, string>) => void;
+}
+
+export function ParametersContainer({ paramData, datasetName, refreshWidgetStates, updateTableData }: ParametersContainerProps) {
+    const paramSelections = useRef(new Map<string, string>());
+    
+    if (datasetName === "") return <div></div>;
+
+    const widgets = paramData.map(obj => {
+        return (
+            <WidgetFromObj key={obj.name} obj={obj}
+                paramSelections={paramSelections} 
+                refreshWidgetStates={refreshWidgetStates} 
+            />
+        );
+    });
+
+    return (
+        <div>
+            {widgets}
+            <input type="submit" value="Apply" 
+                className="blue-button padded widget"
+                onClick={() => updateTableData(paramSelections.current)} 
+            />
+        </div>
+    );
+}

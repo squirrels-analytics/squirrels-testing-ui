@@ -1,0 +1,101 @@
+/* Generic styling */
+.padded {
+  padding: 12px 20px;
+}
+
+.widget {
+  width: 100%;
+  margin: 8px 0;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+input[type=submit] {
+  padding: 12px 20px;
+  cursor: pointer;
+}
+
+button {
+  cursor: pointer;
+  border-radius: 5px;
+  padding: 10px;
+}
+
+.white-button {
+  background-color: white;
+  color: blue;
+}
+
+.white-button:hover {
+  background-color: #d4dae1;
+}
+
+.blue-button {
+  background-color: #4285f4;
+  color: white;
+  border: none;
+}
+
+.blue-button:hover {
+  background-color: #3076c5;
+}
+
+.horizontal-container {
+  display: flex;
+}
+
+/* Specific styling */
+#main-container {
+  height: 97vh;
+  width: 99vw;
+}
+
+#left-container {
+  width: 250px;
+  min-width: 250px;
+  margin-right: 20px;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+#right-container {
+  height: 97vh;
+  width: calc(99vw - 300px);
+}
+
+#header-container {
+  background-color: #d4dae1;
+  color: black;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+}
+
+#table-container {
+  padding: 10px 20px;
+  height: calc(97vh - 70px);
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+/* The Modal */
+.modal-background {
+  position: fixed;
+  z-index: 1;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0,0,0,0.4);
+  padding-top: 60px;
+}
+
+.modal-content {
+  background-color: #fefefe;
+  padding: 30px;
+  margin: 5px auto auto auto;
+  border: 2px solid black;
+}

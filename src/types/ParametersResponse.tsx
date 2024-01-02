@@ -17,7 +17,8 @@ export interface SingleSelectParameterType extends SelectParameterType {
 }
 
 export interface MultiSelectParameterType extends SelectParameterType {
-    include_all: boolean;
+    show_select_all: boolean;
+    is_dropdown: boolean;
     order_matters: boolean;
     selected_ids: string[];
 }

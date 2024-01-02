@@ -45,31 +45,23 @@ async function copyTableData(tableData: TableDataType | null) {
 
 async function callJsonAPI(url: string, callback: (x: any) => void, setIsLoading: (x: boolean) => void) {
     setIsLoading(true);
-    const jwt_token = sessionStorage.getItem("jwt_token");
+    const jwt_token = localStorage.getItem("jwt_token");
     const response = await fetch(hostname+url, {
         headers: {
             'Authorization': `Bearer ${jwt_token}`
         }
     });
 
-    let alertMessage = "";
-    if (response.status === 401) {
-        alertMessage = "Unauthorized action. Please try to 'Authorize' first";
-    } 
-    else if (response.status === 200) {
+    if (response.status === 200) {
         const data = await response.json();
         callback(data);
-    } 
-    else {
-        alertMessage = `Unexpected response status: ${response.status}`;
     }
     setIsLoading(false);
-    if (alertMessage) alert(alertMessage);
 }
 
 export default function App() {
     const [isLoginMode, setIsLoginMode] = useState(false);
-    const existingUsername = sessionStorage.getItem("username");
+    const existingUsername = localStorage.getItem("username");
     const [username, setUsername] = useState(existingUsername || "");
 
     const [isLoading, setIsLoading] = useState(false);
@@ -79,6 +71,7 @@ export default function App() {
     const tokenURL = useRef("");
     const parametersURL = useRef("");
     const datasetURL = useRef("");
+    const userTimeoutId = useRef(0);
 
     const [datasetName, setDatasetName] = useState("");
     const [paramData, setParamData] = useState<ParameterType[]>([]);
@@ -88,30 +81,31 @@ export default function App() {
 
     const clearUsername = () => {
         setUsername("");
-        sessionStorage.removeItem("jwt_token");
-        sessionStorage.removeItem("token_expiry");
-        sessionStorage.removeItem("username");
+        localStorage.removeItem("jwt_token");
+        localStorage.removeItem("token_expiry");
+        localStorage.removeItem("username");
     }
 
     type TokenResponseType = {username: string, access_token: string, expiry_time: string};
     const updateUsername = (data: TokenResponseType) => {
         setUsername(data.username);
-        sessionStorage.setItem("jwt_token", data.access_token);
-        sessionStorage.setItem("token_expiry", data.expiry_time);
-        sessionStorage.setItem("username", data.username);
+        localStorage.setItem("jwt_token", data.access_token);
+        localStorage.setItem("token_expiry", data.expiry_time);
+        localStorage.setItem("username", data.username);
     }
 
     const submitLogout = async () => {
         clearUsername();
+        clearTimeout(userTimeoutId.current);
         await fetch2(catalogURL, setCatalogData);
     }
 
     const createUserTimeout = () => {
-        const tokenExpiry = sessionStorage.getItem("token_expiry");
+        const tokenExpiry = localStorage.getItem("token_expiry");
         if (tokenExpiry) {
             const timeDiff = new Date(tokenExpiry).getTime() - new Date().getTime();
             if (timeDiff > 0) {
-                setTimeout(() => {
+                userTimeoutId.current = setTimeout(() => {
                     submitLogout();
                     alert("User session expired");
                 }, timeDiff);

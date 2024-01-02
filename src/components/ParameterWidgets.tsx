@@ -105,7 +105,7 @@ function MultiSelectWidget({ obj, handleChange, refreshWidgetStates }: SelectWid
                 className="multi-select widget"
                 value={selected}
                 onChange={onChange}
-                hasSelectAll={data.include_all}
+                hasSelectAll={data.show_select_all}
             />
         </div>
     );

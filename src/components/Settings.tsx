@@ -41,8 +41,7 @@ export default function Settings({ catalogData, tokenURL, parametersURL, dataset
             setDatasetName(newDatasets[0].name);
         }
     }, [projectName, projects]);
-
-    // TODO: when username changes, only do effect if datasetName won't change
+    
     useEffect(() => {
         clearTableData();
 
@@ -76,15 +75,6 @@ export default function Settings({ catalogData, tokenURL, parametersURL, dataset
             >
                 {projectOptions}
             </select>
-            {/* TODO
-            <label>Select the Version:</label>
-            <div style={{display: "flex"}}>
-                <label>Major</label>
-                <input type="number" />
-                <label>Minor</label>
-                <input type="number" />
-            </div> 
-            */}
             <label htmlFor="dataset-select">Select a Dataset:</label>
             <select id="dataset-select" 
                 className="padded widget"

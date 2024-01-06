@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { MutableRefObject, useEffect, useRef, useState } from 'react';
 import "./App.css";
 
 import { CatalogDataType } from './types/CatalogResponse.js';
@@ -43,55 +43,68 @@ async function copyTableData(tableData: TableDataType | null) {
 }
 
 
-async function callJsonAPI(url: string, callback: (x: any) => void, setIsLoading: (x: boolean) => void) {
+async function callJsonAPI(
+    url: string, jwtToken: MutableRefObject<string>, username: string, callback: (x: any) => void, 
+    setIsLoading: (x: boolean) => void, submitLogout: () => Promise<void>
+) {
     setIsLoading(true);
-    const jwt_token = localStorage.getItem("jwt_token");
     const response = await fetch(hostname+url, {
         headers: {
-            'Authorization': `Bearer ${jwt_token}`
+            'Authorization': `Bearer ${jwtToken.current}`
         }
     });
 
-    if (response.status === 200) {
-        const data = await response.json();
+    const appliedUsername = response.headers.get("Applied-Username");
+    const data = await response.json();
+
+    // appliedUsername is null for APIs that aren't impacted by auth, or under certain 400/500 error statuses
+    // Also, if logged in but server restarted, token no longer works so we get 401 error. Should logout in this case
+    const hasAppliedUsername = (appliedUsername !== null || response.status === 401)
+    if (hasAppliedUsername && username !== "" && appliedUsername !== username) {
+        alert("User session was invalidated by the server... Logging out.");
+        submitLogout();
+    }
+    else if (response.status === 200) {
         callback(data);
+    }
+    else if (response.status === 401) {
+        alert(data.detail);
+    }
+    else {
+        alert(data.message);
     }
     setIsLoading(false);
 }
 
 export default function App() {
     const [isLoginMode, setIsLoginMode] = useState(false);
-    const existingUsername = localStorage.getItem("username");
-    const [username, setUsername] = useState(existingUsername || "");
-
     const [isLoading, setIsLoading] = useState(false);
-
-    const [catalogData, setCatalogData] = useState<CatalogDataType | null>(null);
 
     const tokenURL = useRef("");
     const parametersURL = useRef("");
     const datasetURL = useRef("");
     const userTimeoutId = useRef(0);
+    const username = useRef("");
+    const jwtToken = useRef("");
+    const expiryTime = useRef("");
 
-    const [datasetName, setDatasetName] = useState("");
-    const [paramData, setParamData] = useState<ParameterType[]>([]);
+    const [catalogData, setCatalogData] = useState<CatalogDataType | null>(null);
+    const [paramData, setParamData] = useState<ParameterType[] | null>(null);
     const [tableData, setTableData] = useState<TableDataType | null>(null);
 
-    const fetch2 = async (url: string, callback: (x: any) => void) => await callJsonAPI(url, callback, setIsLoading);
+    const fetch2 = async (url: string, callback: (x: any) => void) => await callJsonAPI(url, jwtToken, username.current, callback, setIsLoading, submitLogout);
 
     const clearUsername = () => {
-        setUsername("");
-        localStorage.removeItem("jwt_token");
-        localStorage.removeItem("token_expiry");
-        localStorage.removeItem("username");
+        username.current = "";
+        jwtToken.current = "";
+        expiryTime.current = "";
     }
 
     type TokenResponseType = {username: string, access_token: string, expiry_time: string};
     const updateUsername = (data: TokenResponseType) => {
-        setUsername(data.username);
-        localStorage.setItem("jwt_token", data.access_token);
-        localStorage.setItem("token_expiry", data.expiry_time);
-        localStorage.setItem("username", data.username);
+        username.current = data.username;
+        jwtToken.current = data.access_token;
+        expiryTime.current = data.expiry_time;
     }
 
     const submitLogout = async () => {
@@ -101,8 +114,8 @@ export default function App() {
     }
 
     const createUserTimeout = () => {
-        const tokenExpiry = localStorage.getItem("token_expiry");
-        if (tokenExpiry) {
+        const tokenExpiry = expiryTime.current;
+        if (tokenExpiry !== "") {
             const timeDiff = new Date(tokenExpiry).getTime() - new Date().getTime();
             if (timeDiff > 0) {
                 userTimeoutId.current = setTimeout(() => {
@@ -140,14 +153,14 @@ export default function App() {
     }
 
     const updateAllParamData = () => {
-        fetch2(parametersURL.current, (x: ParamDataType) => setParamData(x.parameters));
+        fetch2(parametersURL.current, (x: ParamDataType) => { setParamData(x.parameters) });
     }
 
-    const refreshWidgetStates = (provoker: string, selection: string) => {
+    const refreshWidgetStates = (provoker: string, selection: string) => { 
         const queryParams = new URLSearchParams([[provoker, selection]]);
         const requestURL = parametersURL.current + '?' + queryParams;
         fetch2(requestURL, (x: ParamDataType) => setParamData(paramData => {
-            const newParamData = paramData.slice();
+            const newParamData = paramData!.slice();
             x.parameters.forEach(currParam => {
                 const index = newParamData.findIndex(y => y.name === currParam.name);
                 if (index !== -1) newParamData[index] = currParam;
@@ -161,11 +174,10 @@ export default function App() {
     const updateTableData = (paramSelections: Map<string, string>) => {
         const queryParams = new URLSearchParams([...paramSelections.entries()]);
         const requestURL = datasetURL.current + '?' + queryParams;
-        fetch2(requestURL, setTableData); 
+        fetch2(requestURL, (x: TableDataType) => setTableData(x)); 
     };
 
     useEffect(() => {
-        createUserTimeout();
         fetch2(catalogURL, setCatalogData);
     }, []);
 
@@ -182,16 +194,13 @@ export default function App() {
                         tokenURL={tokenURL}
                         parametersURL={parametersURL}
                         datasetURL={datasetURL}
-                        datasetName={datasetName}
-                        username={username}
-                        setDatasetName={setDatasetName}
+                        setParamData={setParamData}
                         clearTableData={clearTableData}
                         updateAllParamData={updateAllParamData}
                     />
                     <br/><hr/><br/>
                     <ParametersContainer 
                         paramData={paramData} 
-                        datasetName={datasetName}
                         refreshWidgetStates={refreshWidgetStates}
                         updateTableData={updateTableData}
                     />
@@ -202,7 +211,7 @@ export default function App() {
                             {copyTableButton}
                         </div>
                         <AuthGateway 
-                            username={username}
+                            username={username.current}
                             setIsLoginMode={setIsLoginMode}
                             submitLogout={submitLogout} 
                         />

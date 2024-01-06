@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MultiSelect } from "react-multi-select-component";
 import DateRangePicker from '@wojtekmaj/react-daterange-picker';
 import '@wojtekmaj/react-daterange-picker/dist/DateRangePicker.css';
@@ -7,6 +7,7 @@ import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 
 import { ParameterType, SingleSelectParameterType, MultiSelectParameterType, DateParameterType, DateRangeParameterType, NumberParameterType, NumberRangeParameterType } from "../types/ParametersResponse";
+import log from '../utils/log';
 import './ParameterWidgets.css';
 
 
@@ -32,7 +33,7 @@ function SingleSelectWidget({ obj, handleChange, refreshWidgetStates }: SelectWi
     });
 
     const [selectedId, setSelectedId] = useState<string>("");
-    useEffect(() => {
+    useMemo(() => {
         setSelectedId(data.selected_id);
     }, [data])
 
@@ -75,7 +76,7 @@ function MultiSelectWidget({ obj, handleChange, refreshWidgetStates }: SelectWid
     }
 
     const [selected, setSelected] = useState<Option[]>([]);
-    useEffect(() => {
+    useMemo(() => {
         const newSelected = data.selected_ids.map(selectedId => {
             const selectedObj = data.options.find(option => (option.id == selectedId));
             return convertInputOption(selectedObj || {label: "", id: ""});
@@ -116,7 +117,7 @@ function DateWidget({ obj, handleChange }: WidgetProps) {
     const data = obj as DateParameterType;
 
     const [selectedDate, setSelectedDate] = useState("");
-    useEffect(() => {
+    useMemo(() => {
         setSelectedDate(data.selected_date);
     }, [data]);
 
@@ -146,16 +147,24 @@ function DateRangeWidget({ obj, handleChange }: WidgetProps) {
 
     const strToDate = (s: string) => new Date(s.replace(/-/g, '\/'))
 
-    const [dateRange, setDateRange] = useState<Value>([new Date(), new Date()]);
-    useEffect(() => {
+    const [dateRange, setDateRange] = useState<Value>(null);
+    useMemo(() => {
         setDateRange([strToDate(data.selected_start_date), strToDate(data.selected_end_date)]);
     }, [data]);
 
+    const [priorValue, setPriorValue] = useState<string | null>(null);
     useEffect(() => {
-        const [startDate, endDate] = dateRange as [Date, Date];
-        const startISODate = startDate.toISOString().split('T')[0];
-        const endISODate = endDate.toISOString().split('T')[0];
-        return handleChange(startISODate + "," + endISODate);
+        if (Array.isArray(dateRange)) {
+            const [startDate, endDate] = dateRange as [Date, Date];
+            if (startDate !== null && endDate !== null) {
+                const startISODate = startDate.toISOString().split('T')[0];
+                const endISODate = endDate.toISOString().split('T')[0];
+                const selection = (startISODate + "," + endISODate);
+                setPriorValue(selection);
+                return handleChange(selection);
+            }
+        }
+        if (priorValue !== null) return handleChange(priorValue);
     }, [dateRange]);
     
     return (
@@ -176,7 +185,7 @@ function NumberWidget({ obj, handleChange }: WidgetProps) {
     const data = obj as NumberParameterType;
 
     const [selectedValue, setSelectedValue] = useState(0);
-    useEffect(() => {
+    useMemo(() => {
         setSelectedValue(parseFloat(data.selected_value));
     }, [data]);
 
@@ -208,7 +217,7 @@ function NumberRangeWidget({ obj, handleChange }: WidgetProps) {
     const data = obj as NumberRangeParameterType;
 
     const [selectedValues, setSelectedValues] = useState([0, 0]);
-    useEffect(() => {
+    useMemo(() => {
         setSelectedValues([parseFloat(data.selected_lower_value), parseFloat(data.selected_upper_value)]);
     }, [data]);
 
@@ -247,10 +256,12 @@ function WidgetFromObj({ obj, paramSelections, refreshWidgetStates }: WidgetFrom
 
     function cleanup() {
         paramSelections.current.delete(obj.name);
+        log("removed: ", obj.name);
     }
 
     function handleChange(value: string) {
         paramSelections.current.set(obj.name, value);
+        log("added: ", obj.name);
         return cleanup
     }
 
@@ -282,16 +293,15 @@ function WidgetFromObj({ obj, paramSelections, refreshWidgetStates }: WidgetFrom
 
 
 interface ParametersContainerProps {
-    paramData: ParameterType[];
-    datasetName: string;
+    paramData: ParameterType[] | null;
     refreshWidgetStates: (provoker: string, selection: string) => void;
     updateTableData: (x: Map<string, string>) => void;
 }
 
-export function ParametersContainer({ paramData, datasetName, refreshWidgetStates, updateTableData }: ParametersContainerProps) {
+export function ParametersContainer({ paramData, refreshWidgetStates, updateTableData }: ParametersContainerProps) {
     const paramSelections = useRef(new Map<string, string>());
     
-    if (datasetName === "") return <div></div>;
+    if (paramData === null) return <div></div>;
 
     const widgets = paramData.map(obj => {
         return (

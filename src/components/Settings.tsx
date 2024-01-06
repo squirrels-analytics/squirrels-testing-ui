@@ -1,5 +1,7 @@
-import { useEffect, useState, MutableRefObject } from 'react';
+import { useEffect, useState, MutableRefObject, useLayoutEffect } from 'react';
 import { DatasetType, CatalogDataType } from '../types/CatalogResponse';
+import log from '../utils/log';
+import { ParameterType } from '../types/ParametersResponse';
 
 
 interface SettingsProps {
@@ -7,45 +9,54 @@ interface SettingsProps {
     tokenURL: MutableRefObject<string>;
     parametersURL: MutableRefObject<string>;
     datasetURL: MutableRefObject<string>;
-    datasetName: string;
-    username: string;
-    setDatasetName: (x: React.SetStateAction<string>) => void;
+    setParamData: (x: ParameterType[] | null) => void;
     clearTableData: () => void;
     updateAllParamData: () => void;
 }
 
-export default function Settings({ catalogData, tokenURL, parametersURL, datasetURL, datasetName, username, setDatasetName, clearTableData, updateAllParamData }: SettingsProps) {
-    const projects = (catalogData === null) ? [] : catalogData.projects;
+export default function Settings({ catalogData, tokenURL, parametersURL, datasetURL, setParamData, clearTableData, updateAllParamData }: SettingsProps) {
     const [projectName, setProjectName] = useState("");
-    const [datasets, setDatasets] = useState<DatasetType[]>([]);
+    const [datasets, setDatasets] = useState<DatasetType[] | null>(null);
+    const [datasetName, setDatasetName] = useState("");
     
-    useEffect(() => {
+    const projects = (catalogData === null) ? [] : catalogData.projects;
+
+    useLayoutEffect(() => {
         if (projects.length === 0) return;
+
+        log("setting project name...")
+        log("- projects dependency:", projects)
+
         setProjectName(projects[0].name);
     }, [projects]);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         const project = projects.find(obj => (obj.name == projectName));
         if (project === undefined) return;
         
+        log("setting dataset name...")
+        log("- projectName dependency:", projectName)
+        log("- projects dependency:", projects)
+
         tokenURL.current = project.versions[0].token_path;
 
         const newDatasets = project.versions[0].datasets;
         setDatasets(newDatasets);
 
-        if (newDatasets.length === 0) {
-            setDatasetName("");
-            alert("No datasets found for current user");
-        }
-        else {
-            setDatasetName(newDatasets[0].name);
-        }
+        const newDatasetName = (newDatasets.length === 0) ? "" : newDatasets[0].name ;
+        setDatasetName(newDatasetName);
     }, [projectName, projects]);
     
-    useEffect(() => {
+    useLayoutEffect(() => {
+        if (datasetName === null) return;
+
+        log("updating parameters...");
+        log("- datasetName dependency:", datasetName);
+        log("- datasets dependency", datasets);
+
         clearTableData();
 
-        const datasetObj = datasets.find(obj => (obj.name == datasetName))
+        const datasetObj = datasets?.find(obj => (obj.name == datasetName))
         if (datasetObj) {
             parametersURL.current = datasetObj.parameters_path;
             datasetURL.current = datasetObj.result_path;
@@ -54,16 +65,23 @@ export default function Settings({ catalogData, tokenURL, parametersURL, dataset
         else {
             parametersURL.current = "";
             datasetURL.current = "";
+            setParamData(null);
         }
-    }, [datasetName, username]);
+    }, [datasetName, datasets]);
+
+    useEffect(() => {
+        log("alert if no datasets found...");
+        if (datasets?.length === 0)
+            alert("No datasets found for current user");
+    }, [datasets]);
 
     const projectOptions = projects.map(x => 
         <option key={x.name} value={x.name}>{x.label}</option>
     );
 
-    const datasetOptions = datasets.map(x => 
+    const datasetOptions = datasets ? datasets.map(x => 
         <option key={x.name} value={x.name}>{x.label}</option>
-    );
+    ) : <></>;
     
     return (
         <div>

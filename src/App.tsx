@@ -110,7 +110,7 @@ export default function App() {
     const submitLogout = async () => {
         clearUsername();
         clearTimeout(userTimeoutId.current);
-        await fetch2(catalogURL, setCatalogData);
+        await fetch2(catalogURL, setCatalogData); // TODO: switch from catalogURL to datasetsURL
     }
 
     const createUserTimeout = () => {
@@ -142,7 +142,7 @@ export default function App() {
             updateUsername(data);
             createUserTimeout();
             
-            await fetch2(catalogURL, setCatalogData);
+            await fetch2(catalogURL, setCatalogData); // TODO: switch from catalogURL to datasetsURL
         } 
         else if (response.status === 401) {
             unauthorizedCallback()
@@ -150,10 +150,6 @@ export default function App() {
         else {
             alert(`Unexpected response status: ${response.status}`);
         }
-    }
-
-    const updateAllParamData = () => {
-        fetch2(parametersURL.current, (x: ParamDataType) => { setParamData(x.parameters) });
     }
 
     const refreshWidgetStates = (provoker: string, selection: string) => { 
@@ -194,9 +190,9 @@ export default function App() {
                         tokenURL={tokenURL}
                         parametersURL={parametersURL}
                         datasetURL={datasetURL}
+                        fetch2={fetch2}
                         setParamData={setParamData}
                         clearTableData={clearTableData}
-                        updateAllParamData={updateAllParamData}
                     />
                     <br/><hr/><br/>
                     <ParametersContainer 

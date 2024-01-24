@@ -1,20 +1,21 @@
 import { useEffect, useState, MutableRefObject, useLayoutEffect } from 'react';
-import { DatasetType, CatalogDataType } from '../types/CatalogResponse';
+import { CatalogDataType } from '../types/CatalogResponse';
 import log from '../utils/log';
-import { ParameterType } from '../types/ParametersResponse';
+import { ParamDataType, ParameterType } from '../types/ParametersResponse';
+import { DatasetType, DatasetsCatalogType } from '../types/DatasetsCatalogResponse';
 
 
-interface SettingsProps {
+export default function Settings(props: {
     catalogData: CatalogDataType | null;
     tokenURL: MutableRefObject<string>;
     parametersURL: MutableRefObject<string>;
     datasetURL: MutableRefObject<string>;
+    fetch2: (url: string, callback: (x: any) => void) => Promise<void>;
     setParamData: (x: ParameterType[] | null) => void;
     clearTableData: () => void;
-    updateAllParamData: () => void;
-}
+}) {
+    const { catalogData, tokenURL, parametersURL, datasetURL, fetch2, setParamData, clearTableData } = props
 
-export default function Settings({ catalogData, tokenURL, parametersURL, datasetURL, setParamData, clearTableData, updateAllParamData }: SettingsProps) {
     const [projectName, setProjectName] = useState("");
     const [datasets, setDatasets] = useState<DatasetType[] | null>(null);
     const [datasetName, setDatasetName] = useState("");
@@ -39,12 +40,12 @@ export default function Settings({ catalogData, tokenURL, parametersURL, dataset
         log("- projects dependency:", projects)
 
         tokenURL.current = project.versions[0].token_path;
-
-        const newDatasets = project.versions[0].datasets;
-        setDatasets(newDatasets);
-
-        const newDatasetName = (newDatasets.length === 0) ? "" : newDatasets[0].name ;
-        setDatasetName(newDatasetName);
+        const datasetsURL = project.versions[0].datasets_path;
+        fetch2(datasetsURL, (x: DatasetsCatalogType) => { 
+            setDatasets(x.datasets);
+            const newDatasetName = (x.datasets.length === 0) ? "" : x.datasets[0].name ;
+            setDatasetName(newDatasetName);
+        });
     }, [projectName, projects]);
     
     useLayoutEffect(() => {
@@ -60,7 +61,7 @@ export default function Settings({ catalogData, tokenURL, parametersURL, dataset
         if (datasetObj) {
             parametersURL.current = datasetObj.parameters_path;
             datasetURL.current = datasetObj.result_path;
-            updateAllParamData();
+            fetch2(parametersURL.current, (x: ParamDataType) => { setParamData(x.parameters) });
         }
         else {
             parametersURL.current = "";

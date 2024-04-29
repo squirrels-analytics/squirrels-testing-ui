@@ -18,11 +18,11 @@ function createOption(id: string, label: string) {
 
 interface WidgetProps {
     obj: ParameterType;
-    handleChange: (x: string) => (() => void);
+    handleChange: (x: string[]) => (() => void);
 }
 
 interface SelectWidgetProps extends WidgetProps {
-    refreshWidgetStates: (provoker: string, selection: string) => void;
+    refreshWidgetStates: (provoker: string, selections: string[]) => void;
 }
 
 
@@ -38,13 +38,13 @@ function SingleSelectWidget({ obj, handleChange, refreshWidgetStates }: SelectWi
     }, [data])
 
     useEffect(() => {
-        return handleChange(selectedId);
+        return handleChange([selectedId]);
     }, [selectedId])
 
     const onChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         setSelectedId(e.target.value);
         if (data.trigger_refresh) {
-            refreshWidgetStates(data.name, e.target.value);
+            refreshWidgetStates(data.name, [e.target.value]);
         }
     };
 
@@ -71,8 +71,8 @@ function MultiSelectWidget({ obj, handleChange, refreshWidgetStates }: SelectWid
     type Option = {label: string, value: string};
     const convertInputOption = (x: InputOption) => {return {label: x.label, value: x.id}};
     const getOptions = () => data.options.map(option => convertInputOption(option));
-    const selectionsToString = (options: Option[]) => {
-        return JSON.stringify(options.map(x => x.value));
+    const getSelectedValues = (options: Option[]) => {
+        return options.map(x => x.value);
     }
 
     const [selected, setSelected] = useState<Option[]>([]);
@@ -85,13 +85,13 @@ function MultiSelectWidget({ obj, handleChange, refreshWidgetStates }: SelectWid
     }, [data]);
 
     useEffect(() => {
-        return handleChange(selectionsToString(selected));
+        return handleChange(getSelectedValues(selected));
     }, [selected]);
     
     const onChange = (x: Option[]) => {
         setSelected(x);
         if (data.trigger_refresh) {
-            refreshWidgetStates(data.name, selectionsToString(x));
+            refreshWidgetStates(data.name, getSelectedValues(x));
         }
     };
 
@@ -122,7 +122,7 @@ function DateWidget({ obj, handleChange }: WidgetProps) {
     }, [data]);
 
     useEffect(() => {
-        return handleChange(selectedDate);
+        return handleChange([selectedDate]);
     }, [selectedDate]);
 
     return (
@@ -152,16 +152,15 @@ function DateRangeWidget({ obj, handleChange }: WidgetProps) {
         setDateRange([strToDate(data.selected_start_date), strToDate(data.selected_end_date)]);
     }, [data]);
 
-    const [priorValue, setPriorValue] = useState<string | null>(null);
+    const [priorValue, setPriorValue] = useState<[string, string] | null>(null);
     useEffect(() => {
         if (Array.isArray(dateRange)) {
             const [startDate, endDate] = dateRange as [Date, Date];
             if (startDate !== null && endDate !== null) {
                 const startISODate = startDate.toISOString().split('T')[0];
                 const endISODate = endDate.toISOString().split('T')[0];
-                const selection = (startISODate + "," + endISODate);
-                setPriorValue(selection);
-                return handleChange(selection);
+                setPriorValue([startISODate, endISODate]);
+                return handleChange([startISODate, endISODate]);
             }
         }
         if (priorValue !== null) return handleChange(priorValue);
@@ -190,7 +189,7 @@ function NumberWidget({ obj, handleChange }: WidgetProps) {
     }, [data]);
 
     useEffect(() => {
-        return handleChange(selectedValue.toString());
+        return handleChange([selectedValue.toString()]);
     }, [selectedValue]);
 
     return (
@@ -223,7 +222,7 @@ function NumberRangeWidget({ obj, handleChange }: WidgetProps) {
 
     useEffect(() => {
         const [lowerValue, upperValue] = selectedValues.map(x => x.toString())
-        return handleChange(lowerValue + "," + upperValue);
+        return handleChange([lowerValue, upperValue]);
     }, [selectedValues]);
 
     return (
@@ -248,8 +247,8 @@ function NumberRangeWidget({ obj, handleChange }: WidgetProps) {
 
 interface WidgetFromObjProps {
     obj: ParameterType;
-    paramSelections: React.MutableRefObject<Map<string, string>>;
-    refreshWidgetStates: (provoker: string, selection: string) => void;
+    paramSelections: React.MutableRefObject<Map<string, string[]>>;
+    refreshWidgetStates: (provoker: string, selections: string[]) => void;
 }
 
 function WidgetFromObj({ obj, paramSelections, refreshWidgetStates }: WidgetFromObjProps) {
@@ -259,7 +258,7 @@ function WidgetFromObj({ obj, paramSelections, refreshWidgetStates }: WidgetFrom
         log("removed: ", obj.name);
     }
 
-    function handleChange(value: string) {
+    function handleChange(value: string[]) {
         paramSelections.current.set(obj.name, value);
         log("added: ", obj.name);
         return cleanup
@@ -294,12 +293,12 @@ function WidgetFromObj({ obj, paramSelections, refreshWidgetStates }: WidgetFrom
 
 interface ParametersContainerProps {
     paramData: ParameterType[] | null;
-    refreshWidgetStates: (provoker: string, selection: string) => void;
-    updateTableData: (x: Map<string, string>) => void;
+    refreshWidgetStates: (provoker: string, selections: string[]) => void;
+    updateTableData: (x: Map<string, string[]>) => void;
 }
 
 export function ParametersContainer({ paramData, refreshWidgetStates, updateTableData }: ParametersContainerProps) {
-    const paramSelections = useRef(new Map<string, string>());
+    const paramSelections = useRef(new Map<string, string[]>());
     
     if (paramData === null) return <div></div>;
 

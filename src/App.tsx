@@ -152,8 +152,18 @@ export default function App() {
         }
     }
 
-    const refreshWidgetStates = (provoker: string, selection: string) => { 
-        const queryParams = new URLSearchParams([[provoker, selection]]);
+    const toQueryParams = (paramSelections: Map<string, string[]>) => {
+        const queryParams = new URLSearchParams();
+        for (const [param, selections] of paramSelections) {
+            for (const selection of selections) {
+                queryParams.append(param, selection);
+            }
+        }
+        return queryParams;
+    }
+
+    const refreshWidgetStates = (provoker: string, selections: string[]) => { 
+        const queryParams = toQueryParams(new Map([[provoker, selections]]));
         const requestURL = parametersURL.current + '?' + queryParams;
         fetch2(requestURL, (x: ParamDataType) => setParamData(paramData => {
             const newParamData = paramData!.slice();
@@ -167,8 +177,8 @@ export default function App() {
 
     const clearTableData = () => setTableData(null);
 
-    const updateTableData = (paramSelections: Map<string, string>) => {
-        const queryParams = new URLSearchParams([...paramSelections.entries()]);
+    const updateTableData = (paramSelections: Map<string, string[]>) => {
+        const queryParams = toQueryParams(paramSelections);
         const requestURL = datasetURL.current + '?' + queryParams;
         fetch2(requestURL, (x: TableDataType) => setTableData(x)); 
     };

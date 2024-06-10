@@ -2,6 +2,7 @@ interface ParameterTypeBase {
     widget_type: string;
     name: string;
     label: string;
+    description: string;
 }
 
 interface SelectParameterType extends ParameterTypeBase {
@@ -47,6 +48,11 @@ export interface NumberRangeParameterType extends NumberParameterTypeBase {
     selected_upper_value: string;
 }
 
+export interface TextParameterType extends ParameterTypeBase {
+    entered_text: string;
+    is_textarea: boolean;
+}
+
 export type ParameterType = 
       SingleSelectParameterType 
     | MultiSelectParameterType 
@@ -54,6 +60,7 @@ export type ParameterType =
     | DateRangeParameterType 
     | NumberParameterType 
     | NumberRangeParameterType
+    | TextParameterType
 
 export interface ParamDataType {
     parameters: ParameterType[];

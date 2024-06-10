@@ -6,13 +6,23 @@ import 'react-calendar/dist/Calendar.css';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 
-import { ParameterType, SingleSelectParameterType, MultiSelectParameterType, DateParameterType, DateRangeParameterType, NumberParameterType, NumberRangeParameterType } from "../types/ParametersResponse";
+import { ParameterType, SingleSelectParameterType, MultiSelectParameterType, DateParameterType, DateRangeParameterType, NumberParameterType, NumberRangeParameterType, TextParameterType } from "../types/ParametersResponse";
 import log from '../utils/log';
 import './ParameterWidgets.css';
 
 
 function createOption(id: string, label: string) {
     return (<option key={id} value={id}>{label}</option>);
+}
+
+
+function widgetWithLabel(data: ParameterType, coreWidget: JSX.Element, labelExtension: string = "") {
+    return (
+        <div>
+            <label>{data.label}{labelExtension}</label>
+            {coreWidget}
+        </div>
+    );
 }
 
 
@@ -48,18 +58,15 @@ function SingleSelectWidget({ obj, handleChange, refreshWidgetStates }: SelectWi
         }
     };
 
-    return (
-        <div>
-            <label>{data.label}</label>
-            <select 
-                id={data.name} 
-                className="single-select padded widget"
-                value={selectedId}
-                onChange={onChange}
-            >
-                {options}
-            </select>
-        </div>
+    return widgetWithLabel(data,
+        <select 
+            id={data.name} 
+            className="single-select padded widget"
+            value={selectedId}
+            onChange={onChange}
+        >
+            {options}
+        </select>
     );
 }
 
@@ -95,20 +102,18 @@ function MultiSelectWidget({ obj, handleChange, refreshWidgetStates }: SelectWid
         }
     };
 
-    const orderMattersTxt = <span>{data.order_matters ? " (order matters)" : ""}</span>;
+    const orderMattersTxt = data.order_matters ? " (order matters)" : "";
 
-    return (
-        <div>
-            <label>{data.label}{orderMattersTxt}</label>
-            <MultiSelect
-                options={getOptions()}
-                labelledBy={data.name}
-                className="multi-select widget"
-                value={selected}
-                onChange={onChange}
-                hasSelectAll={data.show_select_all}
-            />
-        </div>
+    return widgetWithLabel(data,
+        <MultiSelect
+            options={getOptions()}
+            labelledBy={data.name}
+            className="multi-select widget"
+            value={selected}
+            onChange={onChange}
+            hasSelectAll={data.show_select_all}
+        />,
+        orderMattersTxt
     );
 }
 
@@ -125,16 +130,13 @@ function DateWidget({ obj, handleChange }: WidgetProps) {
         return handleChange([selectedDate]);
     }, [selectedDate]);
 
-    return (
-        <div>
-            <label>{data.label}</label>
-            <input type="date" 
-                id={data.name}
-                className="date padded widget"
-                value={selectedDate} 
-                onChange={e => setSelectedDate(e.target.value)} 
-            />
-        </div>
+    return widgetWithLabel(data,
+        <input type="date" 
+            id={data.name}
+            className="date padded widget"
+            value={selectedDate} 
+            onChange={e => setSelectedDate(e.target.value)} 
+        />
     );
 }
 
@@ -166,16 +168,13 @@ function DateRangeWidget({ obj, handleChange }: WidgetProps) {
         if (priorValue !== null) return handleChange(priorValue);
     }, [dateRange]);
     
-    return (
-        <div>
-            <label>{data.label}</label>
-            <DateRangePicker
-                className="widget"
-                value={dateRange}
-                onChange={setDateRange}
-                format="y/MM/dd"
-            />
-        </div>
+    return widgetWithLabel(data,
+        <DateRangePicker
+            className="widget"
+            value={dateRange}
+            onChange={setDateRange}
+            format="y/MM/dd"
+        />
     );
 }
 
@@ -192,9 +191,8 @@ function NumberWidget({ obj, handleChange }: WidgetProps) {
         return handleChange([selectedValue.toString()]);
     }, [selectedValue]);
 
-    return (
-        <div>
-            <label>{data.label}</label>
+    return widgetWithLabel(data,
+        <>
             <div className="slider-wrapper">
                 <Slider 
                     min={parseFloat(data.min_value)}
@@ -207,8 +205,8 @@ function NumberWidget({ obj, handleChange }: WidgetProps) {
             <div className="slider-value">
                 <span>Value: {selectedValue}</span>
             </div>
-        </div>
-    )
+        </>
+    );
 }
 
 
@@ -225,9 +223,8 @@ function NumberRangeWidget({ obj, handleChange }: WidgetProps) {
         return handleChange([lowerValue, upperValue]);
     }, [selectedValues]);
 
-    return (
-        <div>
-            <label>{data.label}</label>
+    return widgetWithLabel(data,
+        <>
             <div className="slider-wrapper">
                 <Slider range
                     min={parseFloat(data.min_value)}
@@ -240,10 +237,41 @@ function NumberRangeWidget({ obj, handleChange }: WidgetProps) {
             <div className="slider-value">
                 <span>Lower: {selectedValues[0]}</span><span>Upper: {selectedValues[1]}</span>
             </div>
-        </div>
-    )
+        </>
+    );
 }
 
+
+function TextWidget({ obj, handleChange }: WidgetProps) {
+    const data = obj as TextParameterType;
+
+    const [enteredText, setEnteredText] = useState("");
+    useMemo(() => {
+        setEnteredText(data.entered_text);
+    }, [data]);
+
+    useEffect(() => {
+        return handleChange([enteredText]);
+    }, [enteredText]);
+
+    const onChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        setEnteredText(e.target.value);
+    };
+
+    const coreWidget = data.is_textarea ? (
+            <textarea value={enteredText}
+                className="textbox padded widget" 
+                onChange={onChange} 
+            />
+        ) : (
+            <input type="text" value={enteredText}
+                className="textbox padded widget"
+                onChange={onChange} 
+            />
+        );
+
+    return widgetWithLabel(data, coreWidget);
+}
 
 interface WidgetFromObjProps {
     obj: ParameterType;
@@ -283,6 +311,9 @@ function WidgetFromObj({ obj, paramSelections, refreshWidgetStates }: WidgetFrom
             break;
         case "number_range":
             widget = (<NumberRangeWidget obj={obj} handleChange={handleChange} />);
+            break;
+        case "text":
+            widget = (<TextWidget obj={obj} handleChange={handleChange} />);
             break;
         default:
             break;

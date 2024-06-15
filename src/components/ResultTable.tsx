@@ -20,8 +20,8 @@ export default function ResultTable({ tableDataObj }: ResultTableProps) {
     );
 
     const dataComponents = tableDataObj.data.map((rowObj, rowNum) =>
-        <tr key={"row"+rowNum}>
-            { fields.map(field => <td key={rowObj[field.name]}>{rowObj[field.name]}</td>) }
+        <tr key={rowNum}>
+            { fields.map((field, colNum) => <td key={colNum}>{rowObj[field.name]}</td>) }
         </tr>
     );
     

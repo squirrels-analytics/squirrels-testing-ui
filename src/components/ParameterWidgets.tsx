@@ -159,10 +159,10 @@ function DateRangeWidget({ obj, handleChange }: WidgetProps) {
         if (Array.isArray(dateRange)) {
             const [startDate, endDate] = dateRange as [Date, Date];
             if (startDate !== null && endDate !== null) {
-                const startISODate = startDate.toISOString().split('T')[0];
-                const endISODate = endDate.toISOString().split('T')[0];
-                setPriorValue([startISODate, endISODate]);
-                return handleChange([startISODate, endISODate]);
+                const startDateFormatted = startDate.toLocaleDateString("en-CA");
+                const endDateFormatted = endDate.toLocaleDateString("en-CA");
+                setPriorValue([startDateFormatted, endDateFormatted]);
+                return handleChange([startDateFormatted, endDateFormatted]);
             }
         }
         if (priorValue !== null) return handleChange(priorValue);
@@ -174,6 +174,7 @@ function DateRangeWidget({ obj, handleChange }: WidgetProps) {
             value={dateRange}
             onChange={setDateRange}
             format="y/MM/dd"
+            clearIcon={null}
         />
     );
 }

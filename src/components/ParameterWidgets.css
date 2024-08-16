@@ -1,13 +1,21 @@
+.hover-text {
+  position: absolute;
+  z-index: 1;
+  background-color: #f9f9f9;
+  /* padding: 5px; */
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
 input[type="range"] {
   width: 80%;
   padding: 12px 0px;
   border: 0px;
 }
 
-.slider-value {
+.slider-info {
   display: flex;
-  font-size: 15px;
-  margin-bottom: 15px;
+  font-size: 13px;
   justify-content: space-between;
 }
 
@@ -24,6 +32,7 @@ input[type="range"] {
 
 .react-daterange-picker__inputGroup {
   min-width: 0px;
+  text-align: center;
 }
 
 .slider-wrapper {

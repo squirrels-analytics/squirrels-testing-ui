@@ -22,7 +22,7 @@ export function AuthGateway({ username, setIsLoginMode, submitLogout }: AuthGate
     }
 
     return (
-        <div className="horizontal-container">
+        <div className="auth-container">
             {loggedInAsMsg}
             {button}
         </div>
@@ -76,36 +76,40 @@ export function LoginModal({ isLoginMode, setIsLoginMode, submitLogin }: LoginMo
 
     const incorrectPwdMsg = isIncorrectPwd ? (
         <div>Incorrect username or password. Please try again</div>
-    ) : <div></div>;
+    ) : <></>;
 
     const loginForm = (
-        <form className="modal-content" 
+        <form className="modal-content widget-container" 
             style={{width: "400px"}}
             onClick={e => e.stopPropagation()}
             onSubmit={handleSubmit} 
             onReset={handleReset}
         >
-            <label htmlFor="username"><b>Username</b></label>
-            <input type="text" required
-                className="padded widget"
-                placeholder="Enter Username" 
-                name="username" 
-                value={inputFormData.username}
-                onChange={handleInputChange}
-            />
+            <div>
+                <div className="widget-label"><b>Username</b></div>
+                <input type="text" required
+                    className="padded widget"
+                    placeholder="Enter Username" 
+                    name="username" 
+                    value={inputFormData.username}
+                    onChange={handleInputChange}
+                />
+            </div>
     
-            <label htmlFor="password"><b>Password</b></label>
-            <input type="password" required
-                className="padded widget"
-                placeholder="Enter Password" 
-                name="password" 
-                value={inputFormData.password}
-                onChange={handleInputChange} 
-            />
+            <div>
+                <div className="widget-label"><b>Password</b></div>
+                <input type="password" required
+                    className="padded widget"
+                    placeholder="Enter Password" 
+                    name="password" 
+                    value={inputFormData.password}
+                    onChange={handleInputChange} 
+                />
+            </div>
             
             {incorrectPwdMsg}
 
-            <div style={{marginTop: "20px", display: "grid", gridAutoFlow: "column", columnGap: "10px"}}>
+            <div style={{marginTop: "10px", display: "grid", gridAutoFlow: "column", columnGap: "10px"}}>
                 <button type="submit" className="blue-button">Login</button>
                 <button type="reset" className="blue-button">Cancel</button>
             </div>
@@ -116,5 +120,5 @@ export function LoginModal({ isLoginMode, setIsLoginMode, submitLogin }: LoginMo
         <div className="modal-background" onClick={handleReset}>
             {loginForm}
         </div>
-    ) : <div></div>;
+    ) : <></>;
 }

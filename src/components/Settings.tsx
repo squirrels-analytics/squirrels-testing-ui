@@ -85,23 +85,27 @@ export default function Settings(props: {
     ) : <></>;
     
     return (
-        <div>
-            <label htmlFor="project-select">Select a Project:</label>
-            <select id="project-select" 
-                className="padded widget"
-                value={projectName} 
-                onChange={e => setProjectName(e.target.value)}
-            >
-                {projectOptions}
-            </select>
-            <label htmlFor="dataset-select">Select a Dataset:</label>
-            <select id="dataset-select" 
-                className="padded widget"
-                value={datasetName}
-                onChange={e => setDatasetName(e.target.value)}
-            >
-                {datasetOptions}
-            </select>
+        <div className="widget-container">
+            <div>
+                <div className="widget-label"><b>Select a Project:</b></div>
+                <select id="project-select" 
+                    className="padded widget"
+                    value={projectName} 
+                    onChange={e => setProjectName(e.target.value)}
+                >
+                    {projectOptions}
+                </select>
+            </div>
+            <div>
+                <div className="widget-label"><b>Select a Dataset:</b></div>
+                <select id="dataset-select" 
+                    className="padded widget"
+                    value={datasetName}
+                    onChange={e => setDatasetName(e.target.value)}
+                >
+                    {datasetOptions}
+                </select>
+            </div>
         </div>
     );
 }

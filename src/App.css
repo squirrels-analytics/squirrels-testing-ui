@@ -1,14 +1,24 @@
 /* Generic styling */
 .padded {
-  padding: 12px 20px;
+  padding: 8px 20px;
 }
 
 .widget {
   width: 100%;
-  margin: 8px 0;
   box-sizing: border-box;
   border: 1px solid #ccc;
   border-radius: 4px;
+}
+
+.widget-label {
+  position: relative;
+  padding-bottom: 10px;
+}
+
+.widget-container {
+  display: flex; 
+  flex-direction: column;
+  gap: 20px;
 }
 
 input[type=submit] {
@@ -43,6 +53,12 @@ button {
 
 .horizontal-container {
   display: flex;
+}
+
+.auth-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 /* Specific styling */

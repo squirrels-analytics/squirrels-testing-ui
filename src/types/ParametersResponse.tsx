@@ -34,23 +34,24 @@ export interface DateRangeParameterType extends ParameterTypeBase {
 }
 
 interface NumberParameterTypeBase extends ParameterTypeBase {
-    min_value: string;
-    max_value: string;
-    increment: string;
+    min_value: number;
+    max_value: number;
+    increment: number;
 }
 
 export interface NumberParameterType extends NumberParameterTypeBase {
-    selected_value: string;
+    selected_value: number;
 }
 
 export interface NumberRangeParameterType extends NumberParameterTypeBase {
-    selected_lower_value: string;
-    selected_upper_value: string;
+    selected_lower_value: number;
+    selected_upper_value: number;
 }
 
 export interface TextParameterType extends ParameterTypeBase {
     entered_text: string;
     is_textarea: boolean;
+    input_type: string;
 }
 
 export type ParameterType = 

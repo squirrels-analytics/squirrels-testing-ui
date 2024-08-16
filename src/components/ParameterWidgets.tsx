@@ -17,9 +17,16 @@ function createOption(id: string, label: string) {
 
 
 function widgetWithLabel(data: ParameterType, coreWidget: JSX.Element, labelExtension: string = "") {
+    const [isHovered, setIsHovered] = useState(false);
+
     return (
         <div>
-            <label>{data.label}{labelExtension}</label>
+            <div className="widget-label">
+                <span onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
+                    <u>{data.label}</u>{labelExtension}
+                </span>
+                {isHovered && data.description && <div className="hover-text">{data.description}</div>}
+            </div>
             {coreWidget}
         </div>
     );
@@ -59,8 +66,7 @@ function SingleSelectWidget({ obj, handleChange, refreshWidgetStates }: SelectWi
     };
 
     return widgetWithLabel(data,
-        <select 
-            id={data.name} 
+        <select
             className="single-select padded widget"
             value={selectedId}
             onChange={onChange}
@@ -131,8 +137,7 @@ function DateWidget({ obj, handleChange }: WidgetProps) {
     }, [selectedDate]);
 
     return widgetWithLabel(data,
-        <input type="date" 
-            id={data.name}
+        <input type="date"
             className="date padded widget"
             value={selectedDate} 
             onChange={e => setSelectedDate(e.target.value)} 
@@ -173,19 +178,51 @@ function DateRangeWidget({ obj, handleChange }: WidgetProps) {
             className="widget"
             value={dateRange}
             onChange={setDateRange}
-            format="y/MM/dd"
+            format="y-MM-dd"
             clearIcon={null}
+            rangeDivider="~"
         />
+    );
+}
+
+
+function validateBounds(value: number, prior_value: number, min: number, max: number) {
+    if (value < min || value > max)
+        return prior_value;
+    return value;
+}
+
+
+function getWidthOfNumber(value: number) {
+    return `${value.toString().length+3}ch`;
+}
+
+
+function onNumberBoxChange(e: React.ChangeEvent<HTMLInputElement>, selectedValue: number, setSelectedValue: (value: number) => void, min: number, max: number) {
+    const value = parseFloat(e.target.value);
+    const newValue = validateBounds(value, selectedValue, min, max);
+    setSelectedValue(newValue);
+}
+
+
+function SliderInfo({ minValue, maxValue, increment }: { minValue: number, maxValue: number, increment: number }) {
+    return (
+        <div className="slider-info">
+            <span>Min: {minValue}</span><span>- steps of {increment} -</span><span>Max: {maxValue}</span>
+        </div>
     );
 }
 
 
 function NumberWidget({ obj, handleChange }: WidgetProps) {
     const data = obj as NumberParameterType;
+    const minValue = data.min_value;
+    const maxValue = data.max_value;
+    const increment = data.increment;
 
     const [selectedValue, setSelectedValue] = useState(0);
     useMemo(() => {
-        setSelectedValue(parseFloat(data.selected_value));
+        setSelectedValue(data.selected_value);
     }, [data]);
 
     useEffect(() => {
@@ -193,52 +230,98 @@ function NumberWidget({ obj, handleChange }: WidgetProps) {
     }, [selectedValue]);
 
     return widgetWithLabel(data,
-        <>
-            <div className="slider-wrapper">
-                <Slider 
-                    min={parseFloat(data.min_value)}
-                    max={parseFloat(data.max_value)}
-                    step={parseFloat(data.increment)}
-                    value={selectedValue}
-                    onChange={val => setSelectedValue(val as number)}
-                />
+        <div>
+            <div className="slider-info">
+                <span>
+                    <label>Value: </label>
+                    <input type="number"
+                        min={minValue} 
+                        max={maxValue}
+                        step={increment}
+                        value={selectedValue}
+                        style={{width: getWidthOfNumber(selectedValue), minWidth: "40px"}}
+                        onChange={e => onNumberBoxChange(e, selectedValue, setSelectedValue, minValue, maxValue)}
+                    />
+                </span>
             </div>
-            <div className="slider-value">
-                <span>Value: {selectedValue}</span>
+            <div>
+                <div className="slider-wrapper">
+                    <Slider 
+                        min={minValue}
+                        max={maxValue}
+                        step={increment}
+                        value={selectedValue}
+                        onChange={val => setSelectedValue(val as number)}
+                    />
+                </div>
+                <SliderInfo minValue={minValue} maxValue={maxValue} increment={increment} />
             </div>
-        </>
+        </div>
     );
 }
 
 
 function NumberRangeWidget({ obj, handleChange }: WidgetProps) {
     const data = obj as NumberRangeParameterType;
+    const minValue = data.min_value;
+    const maxValue = data.max_value;
+    const increment = data.increment;
 
-    const [selectedValues, setSelectedValues] = useState([0, 0]);
+    const [selectedLowerValue, setSelectedLowerValue] = useState(0);
+    const [selectedUpperValue, setSelectedUpperValue] = useState(0);
     useMemo(() => {
-        setSelectedValues([parseFloat(data.selected_lower_value), parseFloat(data.selected_upper_value)]);
+        setSelectedLowerValue(data.selected_lower_value);
+        setSelectedUpperValue(data.selected_upper_value);
     }, [data]);
 
     useEffect(() => {
-        const [lowerValue, upperValue] = selectedValues.map(x => x.toString())
-        return handleChange([lowerValue, upperValue]);
-    }, [selectedValues]);
+        return handleChange([selectedLowerValue, selectedUpperValue].map(x => x.toString()));
+    }, [selectedLowerValue, selectedUpperValue]);
+
+    const onRangeSliderChange = (val: number[]) => {
+        setSelectedLowerValue(val[0]);
+        setSelectedUpperValue(val[1]);
+    }
 
     return widgetWithLabel(data,
-        <>
-            <div className="slider-wrapper">
-                <Slider range
-                    min={parseFloat(data.min_value)}
-                    max={parseFloat(data.max_value)}
-                    step={parseFloat(data.increment)}
-                    value={selectedValues}
-                    onChange={val => setSelectedValues(val as number[])}
-                />
+        <div>
+            <div className="slider-info">
+                <span>
+                    <label>Lower: </label>
+                    <input type="number"
+                        min={minValue} 
+                        max={maxValue}
+                        step={increment}
+                        value={selectedLowerValue}
+                        style={{width: getWidthOfNumber(selectedLowerValue), minWidth: "40px"}}
+                        onChange={e => onNumberBoxChange(e, selectedLowerValue, setSelectedLowerValue, minValue, selectedUpperValue)}
+                    />
+                </span>
+                <span>
+                    <label>Upper: </label>
+                    <input type="number"
+                        min={minValue} 
+                        max={maxValue}
+                        step={increment}
+                        value={selectedUpperValue}
+                        style={{width: getWidthOfNumber(selectedUpperValue), minWidth: "40px"}}
+                        onChange={e => onNumberBoxChange(e, selectedUpperValue, setSelectedUpperValue, selectedLowerValue, maxValue)}
+                    />
+                </span>
             </div>
-            <div className="slider-value">
-                <span>Lower: {selectedValues[0]}</span><span>Upper: {selectedValues[1]}</span>
+            <div>
+                <div className="slider-wrapper">
+                    <Slider range
+                        min={data.min_value}
+                        max={data.max_value}
+                        step={data.increment}
+                        value={[selectedLowerValue, selectedUpperValue]}
+                        onChange={val => onRangeSliderChange(val as number[])}
+                    />
+                </div>
+                <SliderInfo minValue={minValue} maxValue={maxValue} increment={increment} />
             </div>
-        </>
+        </div>
     );
 }
 
@@ -259,14 +342,17 @@ function TextWidget({ obj, handleChange }: WidgetProps) {
         setEnteredText(e.target.value);
     };
 
-    const coreWidget = data.is_textarea ? (
-            <textarea value={enteredText}
-                className="textbox padded widget" 
+    const className = (data.input_type == "color") ? "widget" : "padded widget";
+    const coreWidget = (data.input_type == "textarea") ? (
+            <textarea 
+                value={enteredText}
+                className={className}
                 onChange={onChange} 
             />
         ) : (
-            <input type="text" value={enteredText}
-                className="textbox padded widget"
+            <input type={data.input_type} 
+                value={enteredText}
+                className={className}
                 onChange={onChange} 
             />
         );
@@ -332,7 +418,7 @@ interface ParametersContainerProps {
 export function ParametersContainer({ paramData, refreshWidgetStates, updateTableData }: ParametersContainerProps) {
     const paramSelections = useRef(new Map<string, string[]>());
     
-    if (paramData === null) return <div></div>;
+    if (paramData === null) return <></>;
 
     const widgets = paramData.map(obj => {
         return (
@@ -344,7 +430,7 @@ export function ParametersContainer({ paramData, refreshWidgetStates, updateTabl
     });
 
     return (
-        <div>
+        <div className="widget-container">
             {widgets}
             <input type="submit" value="Apply" 
                 className="blue-button padded widget"

@@ -1,109 +1,113 @@
-import { useEffect, useState, MutableRefObject, useLayoutEffect } from 'react';
-import { CatalogDataType } from '../types/CatalogResponse';
+import { useState, useRef, MutableRefObject, useLayoutEffect } from 'react';
+import { ProjectMetadataType } from '../types/ProjectMetadataResponse';
 import log from '../utils/log';
 import { ParamDataType, ParameterType } from '../types/ParametersResponse';
-import { DatasetType, DatasetsCatalogType } from '../types/DatasetsCatalogResponse';
+import { DatasetType, DashboardType, DataCatalogType, OutputFormatEnum } from '../types/DataCatalogResponse';
 
 
-export default function Settings(props: {
-    catalogData: CatalogDataType | null;
+interface SettingsProps {
+    projectMetadata: ProjectMetadataType | null;
     tokenURL: MutableRefObject<string>;
     parametersURL: MutableRefObject<string>;
-    datasetURL: MutableRefObject<string>;
-    fetch2: (url: string, callback: (x: any) => void) => Promise<void>;
+    resultsURL: MutableRefObject<string>;
+    fetchJson: (url: string, callback: (x: any) => Promise<void>) => Promise<void>;
     setParamData: (x: ParameterType[] | null) => void;
     clearTableData: () => void;
-}) {
-    const { catalogData, tokenURL, parametersURL, datasetURL, fetch2, setParamData, clearTableData } = props
+    setOutputFormat: (x: OutputFormatEnum) => void;
+}
 
-    const [projectName, setProjectName] = useState("");
-    const [datasets, setDatasets] = useState<DatasetType[] | null>(null);
-    const [datasetName, setDatasetName] = useState("");
+export default function Settings({ 
+    projectMetadata, tokenURL, parametersURL, resultsURL, fetchJson, setParamData, clearTableData, setOutputFormat
+}: SettingsProps) {
+
+    const [isDashboardMode, toggleDashboardMode] = useState(false);
+    const [dataObjName, setDataObjName] = useState("");
+    const datasets = useRef<DatasetType[] | null>(null);
+    const dashboards = useRef<DashboardType[] | null>(null);
     
-    const projects = (catalogData === null) ? [] : catalogData.projects;
-
     useLayoutEffect(() => {
-        if (projects.length === 0) return;
+        if (projectMetadata === null) return;
 
-        log("setting project name...")
-        log("- projects dependency:", projects)
+        log("setting dataset / dashboard name...")
+        tokenURL.current = projectMetadata.versions[0].token_path;
+        const dataCatalogURL = projectMetadata.versions[0].data_catalog_path;
+        fetchJson(dataCatalogURL, async (x: DataCatalogType) => { 
+            datasets.current = x.datasets;
+            dashboards.current = x.dashboards;
+            toggleDashboardMode(false);
+            setOutputFormat(OutputFormatEnum.UNSET);
 
-        setProjectName(projects[0].name);
-    }, [projects]);
-
-    useLayoutEffect(() => {
-        const project = projects.find(obj => (obj.name == projectName));
-        if (project === undefined) return;
-        
-        log("setting dataset name...")
-        log("- projectName dependency:", projectName)
-        log("- projects dependency:", projects)
-
-        tokenURL.current = project.versions[0].token_path;
-        const datasetsURL = project.versions[0].datasets_path;
-        fetch2(datasetsURL, (x: DatasetsCatalogType) => { 
-            setDatasets(x.datasets);
-            const newDatasetName = (x.datasets.length === 0) ? "" : x.datasets[0].name ;
-            setDatasetName(newDatasetName);
+            const newDataObjName = (x.datasets.length === 0) ? "" : x.datasets[0].name;
+            setDataObjName(newDataObjName);
         });
-    }, [projectName, projects]);
+    }, [projectMetadata]);
+
+    useLayoutEffect(() => {
+        const dataObjList = isDashboardMode ? dashboards.current : datasets.current;
+        if (dataObjList === null) return;
+
+        const newDataObjName = (dataObjList.length === 0) ? "" : dataObjList[0].name;
+        setDataObjName(newDataObjName);
+    }, [isDashboardMode])
     
     useLayoutEffect(() => {
-        if (datasetName === null) return;
-
-        log("updating parameters...");
-        log("- datasetName dependency:", datasetName);
-        log("- datasets dependency", datasets);
-
         clearTableData();
 
-        const datasetObj = datasets?.find(obj => (obj.name == datasetName))
-        if (datasetObj) {
-            parametersURL.current = datasetObj.parameters_path;
-            datasetURL.current = datasetObj.result_path;
-            fetch2(parametersURL.current, (x: ParamDataType) => { setParamData(x.parameters) });
+        var dataObj = null;
+        if (isDashboardMode) {
+            dataObj = dashboards.current?.find(obj => (obj.name == dataObjName));
+            const formatAsString = dataObj ? dataObj.result_format.toUpperCase() : "UNSET";
+            setOutputFormat(OutputFormatEnum[formatAsString as keyof typeof OutputFormatEnum]);
+        }
+        else {
+            dataObj = datasets.current?.find(obj => (obj.name == dataObjName));
+            setOutputFormat(OutputFormatEnum.TABLE);
+        }
+
+        if (dataObj) {
+            parametersURL.current = dataObj.parameters_path;
+            resultsURL.current = dataObj.result_path;
+            fetchJson(parametersURL.current, async (x: ParamDataType) => { setParamData(x.parameters) });
         }
         else {
             parametersURL.current = "";
-            datasetURL.current = "";
+            resultsURL.current = "";
             setParamData(null);
         }
-    }, [datasetName, datasets]);
+    }, [dataObjName]);
 
-    useEffect(() => {
-        log("alert if no datasets found...");
-        if (datasets?.length === 0)
-            alert("No datasets found for current user");
-    }, [datasets]);
+    log("alert if no datasets or dashboards found...");
+    if (!isDashboardMode && datasets.current?.length === 0)
+        alert("No datasets found for current user");
+    if (isDashboardMode && dashboards.current?.length === 0)
+        alert("No dashboards found for current user");
 
-    const projectOptions = projects.map(x => 
-        <option key={x.name} value={x.name}>{x.label}</option>
-    );
-
-    const datasetOptions = datasets ? datasets.map(x => 
+    const dataObjList = isDashboardMode ? dashboards.current : datasets.current;
+    const dataObjOptions = dataObjList ? dataObjList.map(x => 
         <option key={x.name} value={x.name}>{x.label}</option>
     ) : <></>;
     
     return (
         <div className="widget-container">
             <div>
-                <div className="widget-label"><b>Select a Project:</b></div>
-                <select id="project-select" 
+                <div className="widget-label"><b>Dataset or Dashboard?</b></div>
+                <select id="is-dashboard-select" 
                     className="padded widget"
-                    value={projectName} 
-                    onChange={e => setProjectName(e.target.value)}
+                    value={isDashboardMode ? "dashboard" : "dataset"}
+                    onChange={e => toggleDashboardMode(e.target.value === "dashboard")}
                 >
-                    {projectOptions}
+                    <option value="dataset">Dataset</option>
+                    <option value="dashboard">Dashboard</option>  
                 </select>
             </div>
             <div>
-                <div className="widget-label"><b>Select a Dataset:</b></div>
+                <div className="widget-label"><b>Select a {isDashboardMode ? "Dashboard" : "Dataset"}:</b></div>
                 <select id="dataset-select" 
                     className="padded widget"
-                    value={datasetName}
-                    onChange={e => setDatasetName(e.target.value)}
+                    value={dataObjName}
+                    onChange={e => setDataObjName(e.target.value)}
                 >
-                    {datasetOptions}
+                    {dataObjOptions}
                 </select>
             </div>
         </div>

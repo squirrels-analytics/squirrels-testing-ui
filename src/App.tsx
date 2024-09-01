@@ -1,7 +1,7 @@
 import { MutableRefObject, useEffect, useRef, useState } from 'react';
 import "./App.css";
 
-import { CatalogDataType } from './types/CatalogResponse.js';
+import { ProjectMetadataType } from './types/ProjectMetadataResponse.js';
 import { ParamDataType, ParameterType } from './types/ParametersResponse.js';
 import { TableDataType } from './types/DatasetResponse.js';
 
@@ -10,13 +10,14 @@ import Settings from './components/Settings.js'
 import ResultTable from './components/ResultTable.js';
 import { ParametersContainer } from './components/ParameterWidgets.js';
 import { AuthGateway, LoginModal } from './components/Authentication.js';
+import { OutputFormatEnum } from './types/DataCatalogResponse.js';
 
 declare const hostname: string;
-declare const catalogURL: string;
+declare const projectMetadataURL: string;
 
 
-async function copyTableData(tableData: TableDataType | null) {
-    if (tableData === null) return;
+async function copyTableData(tableData: TableDataType) {
+    if (tableData === null || typeof tableData == "string") return;
 
     let text = "";
     const fields = tableData.schema.fields;
@@ -43,37 +44,60 @@ async function copyTableData(tableData: TableDataType | null) {
 }
 
 
-async function callJsonAPI(
-    url: string, jwtToken: MutableRefObject<string>, username: string, callback: (x: any) => void, 
+async function callAPI(
+    url: string, jwtToken: MutableRefObject<string>, username: string, callback: (x: Response) => Promise<void>, 
     setIsLoading: (x: boolean) => void, submitLogout: () => Promise<void>
 ) {
     setIsLoading(true);
-    const response = await fetch(hostname+url, {
-        headers: {
-            'Authorization': `Bearer ${jwtToken.current}`
+    
+    try {
+        const response = await fetch(hostname+url, {
+            headers: {
+                'Authorization': `Bearer ${jwtToken.current}`
+            }
+        });
+
+        const appliedUsername = response.headers.get("Applied-Username");
+
+        // appliedUsername is null for APIs that aren't impacted by auth, or under certain 400/500 error statuses
+        // Also, if logged in but server restarted, token no longer works so we get 401 error. Should logout in this case
+        const hasAppliedUsername = (appliedUsername !== null || response.status === 401)
+        if (hasAppliedUsername && username !== "" && appliedUsername !== username) {
+            alert("User session was invalidated by the server... Logging out.");
+            submitLogout();
         }
-    });
+        if (response.status === 200) {
+            await callback(response);
+        }
+        else {
+            const data = await response.json();
+    
+            if (response.status === 401) {
+                alert(data.detail);
+            }
+            else {
+                alert(data.message);
+            }
+        }
+    }
+    catch(error) {
+        console.error(error);
+        alert("An unexpected error occurred")
+    }
 
-    const appliedUsername = response.headers.get("Applied-Username");
-    const data = await response.json();
-
-    // appliedUsername is null for APIs that aren't impacted by auth, or under certain 400/500 error statuses
-    // Also, if logged in but server restarted, token no longer works so we get 401 error. Should logout in this case
-    const hasAppliedUsername = (appliedUsername !== null || response.status === 401)
-    if (hasAppliedUsername && username !== "" && appliedUsername !== username) {
-        alert("User session was invalidated by the server... Logging out.");
-        submitLogout();
-    }
-    else if (response.status === 200) {
-        callback(data);
-    }
-    else if (response.status === 401) {
-        alert(data.detail);
-    }
-    else {
-        alert(data.message);
-    }
     setIsLoading(false);
+}
+
+
+async function callJsonAPI(
+    url: string, jwtToken: MutableRefObject<string>, username: string, callback: (x: any) => Promise<void>, 
+    setIsLoading: (x: boolean) => void, submitLogout: () => Promise<void>
+) {
+    const newCallback = async (x: Response) => {
+        const data = await x.json();
+        await callback(data);
+    };
+    await callAPI(url, jwtToken, username, newCallback, setIsLoading, submitLogout);
 }
 
 export default function App() {
@@ -82,17 +106,20 @@ export default function App() {
 
     const tokenURL = useRef("");
     const parametersURL = useRef("");
-    const datasetURL = useRef("");
+    const resultsURL = useRef("");
     const userTimeoutId = useRef(0);
     const username = useRef("");
     const jwtToken = useRef("");
     const expiryTime = useRef("");
 
-    const [catalogData, setCatalogData] = useState<CatalogDataType | null>(null);
+    const [projectMetadata, setProjectMetadata] = useState<ProjectMetadataType | null>(null);
     const [paramData, setParamData] = useState<ParameterType[] | null>(null);
-    const [tableData, setTableData] = useState<TableDataType | null>(null);
+    const [resultContent, setResultContent] = useState<TableDataType | string | null>(null);
+    const [outputFormat, setOutputFormat] = useState(OutputFormatEnum.UNSET);
 
-    const fetch2 = async (url: string, callback: (x: any) => void) => await callJsonAPI(url, jwtToken, username.current, callback, setIsLoading, submitLogout);
+    const fetchJson = async (url: string, callback: (x: any) => Promise<void>) => await callJsonAPI(url, jwtToken, username.current, callback, setIsLoading, submitLogout);
+
+    const fetchHTTPResponse = async (url: string, callback: (x: Response) => Promise<void>) => await callAPI(url, jwtToken, username.current, callback, setIsLoading, submitLogout);
 
     const clearUsername = () => {
         username.current = "";
@@ -110,7 +137,7 @@ export default function App() {
     const submitLogout = async () => {
         clearUsername();
         clearTimeout(userTimeoutId.current);
-        await fetch2(catalogURL, setCatalogData); // TODO: switch from catalogURL to datasetsURL
+        await fetchJson(projectMetadataURL, async x => setProjectMetadata(x));
     }
 
     const createUserTimeout = () => {
@@ -142,7 +169,7 @@ export default function App() {
             updateUsername(data);
             createUserTimeout();
             
-            await fetch2(catalogURL, setCatalogData); // TODO: switch from catalogURL to datasetsURL
+            await fetchJson(projectMetadataURL, async x => setProjectMetadata(x));
         } 
         else if (response.status === 401) {
             unauthorizedCallback()
@@ -165,7 +192,7 @@ export default function App() {
     const refreshWidgetStates = (provoker: string, selections: string[]) => { 
         const queryParams = toQueryParams(new Map([[provoker, selections]]));
         const requestURL = parametersURL.current + '?' + queryParams;
-        fetch2(requestURL, (x: ParamDataType) => setParamData(paramData => {
+        fetchJson(requestURL, async (x: ParamDataType) => setParamData(paramData => {
             const newParamData = paramData!.slice();
             x.parameters.forEach(currParam => {
                 const index = newParamData.findIndex(y => y.name === currParam.name);
@@ -175,20 +202,28 @@ export default function App() {
         }));
     };
 
-    const clearTableData = () => setTableData(null);
+    const clearTableData = () => {
+        setResultContent(null);
+    }
 
     const updateTableData = (paramSelections: Map<string, string[]>) => {
         const queryParams = toQueryParams(paramSelections);
-        const requestURL = datasetURL.current + '?' + queryParams;
-        fetch2(requestURL, (x: TableDataType) => setTableData(x)); 
+        const requestURL = resultsURL.current + '?' + queryParams;
+        const callback = async (x: Response) => {
+            const data = (outputFormat === OutputFormatEnum.TABLE) ? await x.json() : 
+                (outputFormat === OutputFormatEnum.PNG) ? btoa(String.fromCharCode(...new Uint8Array(await x.arrayBuffer()))) :
+                (outputFormat === OutputFormatEnum.HTML) ? await x.text() : null;
+            setResultContent(data);
+        }
+        fetchHTTPResponse(requestURL, callback);
     };
 
     useEffect(() => {
-        fetch2(catalogURL, setCatalogData);
+        fetchJson(projectMetadataURL, async x => setProjectMetadata(x));
     }, []);
 
-    const copyTableButton = (tableData === null) ? <></> : (
-        <button className="white-button" onClick={() => copyTableData(tableData)}>Copy Table</button>
+    const copyTableButton = (resultContent === null || outputFormat !== OutputFormatEnum.TABLE) ? <></> : (
+        <button className="white-button" onClick={() => copyTableData(resultContent as TableDataType)}>Copy Table</button>
     );
     
     return (
@@ -196,13 +231,14 @@ export default function App() {
             <div id="main-container" className="horizontal-container">
                 <div id="left-container">
                     <Settings 
-                        catalogData={catalogData} 
+                        projectMetadata={projectMetadata} 
                         tokenURL={tokenURL}
                         parametersURL={parametersURL}
-                        datasetURL={datasetURL}
-                        fetch2={fetch2}
+                        resultsURL={resultsURL}
+                        fetchJson={fetchJson}
                         setParamData={setParamData}
                         clearTableData={clearTableData}
+                        setOutputFormat={setOutputFormat}
                     />
                     <br/><hr/><br/>
                     <ParametersContainer 
@@ -223,7 +259,7 @@ export default function App() {
                         />
                     </div>
                     <div id="table-container">
-                        <ResultTable tableDataObj={tableData} />
+                        <ResultTable tableDataObj={resultContent} outputFormat={outputFormat} />
                     </div>
                 </div>
             </div>

@@ -20,10 +20,12 @@ export default function Settings({
     projectMetadata, tokenURL, parametersURL, resultsURL, fetchJson, setParamData, clearTableData, setOutputFormat
 }: SettingsProps) {
 
-    const [isDashboardMode, toggleDashboardMode] = useState(false);
+    const [isDashboardMode, toggleDashboardMode] = useState<boolean | null>(null);
     const [dataObjName, setDataObjName] = useState("");
     const datasets = useRef<DatasetType[] | null>(null);
     const dashboards = useRef<DashboardType[] | null>(null);
+
+    const dataObjType = isDashboardMode ? "dashboard" : "dataset";
     
     useLayoutEffect(() => {
         if (projectMetadata === null) return;
@@ -46,8 +48,15 @@ export default function Settings({
         const dataObjList = isDashboardMode ? dashboards.current : datasets.current;
         if (dataObjList === null) return;
 
-        const newDataObjName = (dataObjList.length === 0) ? "" : dataObjList[0].name;
-        setDataObjName(newDataObjName);
+        if (dataObjList.length === 0) {
+            log("alert if no datasets or dashboards found...");
+            alert(`No ${dataObjType} found for current user`);
+            setDataObjName("");
+        }
+        else {
+            setDataObjName(dataObjList[0].name);
+        }
+
     }, [isDashboardMode])
     
     useLayoutEffect(() => {
@@ -76,12 +85,6 @@ export default function Settings({
         }
     }, [dataObjName]);
 
-    log("alert if no datasets or dashboards found...");
-    if (!isDashboardMode && datasets.current?.length === 0)
-        alert("No datasets found for current user");
-    if (isDashboardMode && dashboards.current?.length === 0)
-        alert("No dashboards found for current user");
-
     const dataObjList = isDashboardMode ? dashboards.current : datasets.current;
     const dataObjOptions = dataObjList ? dataObjList.map(x => 
         <option key={x.name} value={x.name}>{x.label}</option>
@@ -93,7 +96,7 @@ export default function Settings({
                 <div className="widget-label"><b>Dataset or Dashboard?</b></div>
                 <select id="is-dashboard-select" 
                     className="padded widget"
-                    value={isDashboardMode ? "dashboard" : "dataset"}
+                    value={dataObjType}
                     onChange={e => toggleDashboardMode(e.target.value === "dashboard")}
                 >
                     <option value="dataset">Dataset</option>

@@ -20,7 +20,6 @@ input[type="range"] {
 }
 
 .react-daterange-picker {
-  margin-bottom: 15px;
   height: 40px;
   font-size: 14px;
 }

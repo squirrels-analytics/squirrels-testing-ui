@@ -212,7 +212,8 @@ export default function App() {
         const callback = async (x: Response) => {
             const data = (outputFormat === OutputFormatEnum.TABLE) ? await x.json() : 
                 (outputFormat === OutputFormatEnum.PNG) ? btoa(String.fromCharCode(...new Uint8Array(await x.arrayBuffer()))) :
-                (outputFormat === OutputFormatEnum.HTML) ? await x.text() : null;
+                (outputFormat === OutputFormatEnum.HTML) ? await x.text() : 
+                null;
             setResultContent(data);
         }
         fetchHTTPResponse(requestURL, callback);

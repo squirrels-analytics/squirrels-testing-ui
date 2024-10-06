@@ -138,6 +138,7 @@ function DateWidget({ obj, handleChange }: WidgetProps) {
 
     return widgetWithLabel(data,
         <input type="date"
+            min={data.min_date} max={data.max_date}
             className="date padded widget"
             value={selectedDate} 
             onChange={e => setSelectedDate(e.target.value)} 
@@ -177,6 +178,8 @@ function DateRangeWidget({ obj, handleChange }: WidgetProps) {
         <DateRangePicker
             className="widget"
             value={dateRange}
+            minDate={strToDate(data.min_date)}
+            maxDate={strToDate(data.max_date)}
             onChange={setDateRange}
             format="y-MM-dd"
             clearIcon={null}

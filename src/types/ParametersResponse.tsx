@@ -24,11 +24,16 @@ export interface MultiSelectParameterType extends SelectParameterType {
     selected_ids: string[];
 }
 
-export interface DateParameterType extends ParameterTypeBase {
+interface DateParameterTypeBase extends ParameterTypeBase {
+    min_date: string;
+    max_date: string;
+}
+
+export interface DateParameterType extends DateParameterTypeBase {
     selected_date: string;
 }
 
-export interface DateRangeParameterType extends ParameterTypeBase {
+export interface DateRangeParameterType extends DateParameterTypeBase {
     selected_start_date: string;
     selected_end_date: string;
 }

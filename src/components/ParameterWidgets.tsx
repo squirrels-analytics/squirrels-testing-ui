@@ -153,11 +153,13 @@ function DateRangeWidget({ obj, handleChange }: WidgetProps) {
     type ValuePiece = Date | null;
     type Value = ValuePiece | [ValuePiece, ValuePiece];
 
-    const strToDate = (s: string) => new Date(s.replace(/-/g, '\/'))
+    const strToDate = (s: string) => new Date(s.replace(/-/g, '\/'));
 
     const [dateRange, setDateRange] = useState<Value>(null);
     useMemo(() => {
-        setDateRange([strToDate(data.selected_start_date), strToDate(data.selected_end_date)]);
+        const startDate = data.selected_start_date ? strToDate(data.selected_start_date) : null;
+        const endDate = data.selected_end_date ? strToDate(data.selected_end_date) : null;
+        setDateRange([startDate, endDate]);
     }, [data]);
 
     const [priorValue, setPriorValue] = useState<[string, string] | null>(null);
@@ -178,8 +180,8 @@ function DateRangeWidget({ obj, handleChange }: WidgetProps) {
         <DateRangePicker
             className="widget"
             value={dateRange}
-            minDate={strToDate(data.min_date)}
-            maxDate={strToDate(data.max_date)}
+            minDate={data.min_date ? strToDate(data.min_date) : undefined}
+            maxDate={data.max_date ? strToDate(data.max_date) : undefined}
             onChange={setDateRange}
             format="y-MM-dd"
             clearIcon={null}
